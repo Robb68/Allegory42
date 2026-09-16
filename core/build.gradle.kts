@@ -24,9 +24,20 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-                implementation("app.cash.sqldelight:runtime:2.0.2")
+                // api, not implementation: Marker.timestamp/targetDate are
+                // public Instant/LocalDate, Realm444Database is a public
+                // Transacter, and the repository interfaces expose Flow<...>
+                // and CoroutineDispatcher params — all part of /core's
+                // public surface. implementation() here compiled fine in
+                // this module but left every one of those types
+                // inaccessible to /androidApp ("Cannot access class ...
+                // Check your module classpath"), since implementation
+                // dependencies don't propagate to consumers.
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+                api("app.cash.sqldelight:runtime:2.0.2")
+                // Only used internally (SqlDelightRepositories.kt's
+                // .asFlow()/mapToList) — nothing public exposes its types.
                 implementation("app.cash.sqldelight:coroutines-extensions:2.0.2")
             }
         }
