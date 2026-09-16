@@ -1,0 +1,102 @@
+-- Realm 444 schema. commonMain — the schema itself has zero Android SDK
+-- dependency; only the SqlDriver implementation is platform-specific
+-- (AndroidSqliteDriver, wired in /androidApp/persistence).
+--
+-- pattern_links is intentionally absent: it is a derived, on-read
+-- relationship computed by PatternEngine, never a stored column.
+
+CREATE TABLE marker (
+    id TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    timestamp_epoch_millis INTEGER NOT NULL,
+    source_section TEXT NOT NULL,
+    title TEXT NOT NULL,
+    -- comma-separated tags; short, user-authored list, not worth a join table
+    primary_feeling_tags TEXT NOT NULL,
+    choice_vs_habit TEXT NOT NULL,
+    choice_vs_habit_confidence REAL NOT NULL,
+    is_anchor INTEGER AS kotlin.Boolean NOT NULL,
+    target_date TEXT,
+    anchor_status TEXT,
+    emotion_happiness REAL NOT NULL,
+    emotion_sadness REAL NOT NULL,
+    emotion_anger REAL NOT NULL,
+    emotion_joy REAL NOT NULL,
+    emotion_excitement REAL NOT NULL,
+    emotion_anticipation REAL NOT NULL,
+    emotion_anxiety REAL NOT NULL
+);
+
+CREATE INDEX marker_timestamp_idx ON marker(timestamp_epoch_millis);
+CREATE INDEX marker_source_section_idx ON marker(source_section);
+
+CREATE TABLE mind_map_node (
+    id TEXT NOT NULL PRIMARY KEY,
+    marker_id TEXT NOT NULL,
+    parent_node_id TEXT,
+    node_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    position_hint REAL,
+    created_at_epoch_millis INTEGER NOT NULL,
+    edited_at_epoch_millis INTEGER NOT NULL,
+    FOREIGN KEY (marker_id) REFERENCES marker(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_node_id) REFERENCES mind_map_node(id) ON DELETE CASCADE
+);
+
+CREATE INDEX mind_map_node_marker_id_idx ON mind_map_node(marker_id);
+
+CREATE TABLE meaning_statement (
+    id TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at_epoch_millis INTEGER NOT NULL,
+    edited_at_epoch_millis INTEGER NOT NULL
+);
+
+-- Markers, oldest first — the chronological order SpiralEngine derives position from.
+selectAllMarkers:
+SELECT * FROM marker ORDER BY timestamp_epoch_millis ASC;
+
+selectMarkerById:
+SELECT * FROM marker WHERE id = ?;
+
+insertMarker:
+INSERT INTO marker (
+    id, user_id, timestamp_epoch_millis, source_section, title, primary_feeling_tags,
+    choice_vs_habit, choice_vs_habit_confidence, is_anchor, target_date, anchor_status,
+    emotion_happiness, emotion_sadness, emotion_anger, emotion_joy, emotion_excitement,
+    emotion_anticipation, emotion_anxiety
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMarker:
+UPDATE marker SET
+    title = ?, primary_feeling_tags = ?, choice_vs_habit = ?, choice_vs_habit_confidence = ?,
+    is_anchor = ?, target_date = ?, anchor_status = ?,
+    emotion_happiness = ?, emotion_sadness = ?, emotion_anger = ?, emotion_joy = ?,
+    emotion_excitement = ?, emotion_anticipation = ?, emotion_anxiety = ?
+WHERE id = ?;
+
+deleteMarker:
+DELETE FROM marker WHERE id = ?;
+
+selectNodesForMarker:
+SELECT * FROM mind_map_node WHERE marker_id = ?;
+
+insertMindMapNode:
+INSERT INTO mind_map_node (
+    id, marker_id, parent_node_id, node_type, content, position_hint,
+    created_at_epoch_millis, edited_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMindMapNode:
+UPDATE mind_map_node SET content = ?, position_hint = ?, edited_at_epoch_millis = ? WHERE id = ?;
+
+deleteMindMapNode:
+DELETE FROM mind_map_node WHERE id = ?;
+
+selectMeaningStatement:
+SELECT * FROM meaning_statement WHERE user_id = ? LIMIT 1;
+
+upsertMeaningStatement:
+INSERT OR REPLACE INTO meaning_statement (id, user_id, text, created_at_epoch_millis, edited_at_epoch_millis)
+VALUES (?, ?, ?, ?, ?);
