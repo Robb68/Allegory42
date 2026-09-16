@@ -42,6 +42,14 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's own default ("tools platform-tools") fails outright:
+          # the legacy "tools" package was removed from Google's SDK
+          # repository years ago, so `sdkmanager tools` errors with "Failed
+          # to find package 'tools'" before the workflow ever reaches
+          # Gradle. Ask for what :androidApp actually needs instead —
+          # compileSdk 34 (build.gradle.kts) and matching build-tools.
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
 
       - name: core — unit tests (zero Android SDK on the classpath)
         run: ./gradlew :core:jvmTest --stacktrace
